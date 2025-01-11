@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,8 +15,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -32,6 +40,8 @@ import com.momen.photocompressor.ui.theme.PhotoCompressorTheme
 class ImageSharingActivity : ComponentActivity() {
     private lateinit var workManager: WorkManager
     private val viewModel by viewModels<ImageProcessingViewModel>()
+    private var inputUri: Uri? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         workManager = WorkManager.getInstance(applicationContext)
@@ -42,6 +52,7 @@ class ImageSharingActivity : ComponentActivity() {
                     workManager.getWorkInfoByIdLiveData(id).observeAsState().value
                 }
                 LaunchedEffect(key1 = workerResult?.outputData) {
+                    Log.e("ImageProcessing", "Worker result: ${workerResult?.outputData}")
                     if (workerResult?.outputData != null) {
                         val filePath =
                             workerResult.outputData.getString(ImageCompressorWorker.KEY_RESULT_PATH)
@@ -52,10 +63,32 @@ class ImageSharingActivity : ComponentActivity() {
                     }
                 }
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize().padding(vertical = 40.dp)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Top
                 ) {
+                    TextField(
+                        value = viewModel.inputUrl,
+                        onValueChange = { viewModel.updateInputUrl(it) },
+                        label = { Text("Enter Image URL or Share an Image") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            if (viewModel.inputUrl.isNotEmpty()) {
+                                inputUri = Uri.parse(viewModel.inputUrl)
+                                processImage(inputUri)
+                            }
+                        }
+                    ) {
+                        Text("Compress Image from URL or Shared Content")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                     viewModel.uncompressedImageUri?.let {
                         Text(text = "Uncompressed image")
                         AsyncImage(
@@ -72,7 +105,6 @@ class ImageSharingActivity : ComponentActivity() {
                         )
                     }
                 }
-
             }
         }
     }
@@ -85,17 +117,24 @@ class ImageSharingActivity : ComponentActivity() {
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         } ?: return
 
-        viewModel.updateUncompressedImageUri(uri)
-        val request = OneTimeWorkRequestBuilder<ImageCompressorWorker>().setInputData(
-            workDataOf(
-                ImageCompressorWorker.KEY_CONTENT_URI to uri.toString(),
-                ImageCompressorWorker.KEY_COMPRESSION_THRESHOLD to 1024 * 20L
-            )
-        ).setConstraints(
-            Constraints(requiresStorageNotLow = true)
-        ).build()
+        inputUri = uri
+        processImage(uri)
+    }
 
-        viewModel.updateWorkId(request.id)
-        workManager.enqueue(request)
+    private fun processImage(uri: Uri?) {
+        uri?.let {
+            viewModel.updateUncompressedImageUri(it)
+            val request = OneTimeWorkRequestBuilder<ImageCompressorWorker>().setInputData(
+                workDataOf(
+                    ImageCompressorWorker.KEY_CONTENT_URI to it.toString(),
+                    ImageCompressorWorker.KEY_COMPRESSION_THRESHOLD to 1024 * 20L
+                )
+            ).setConstraints(
+                Constraints(requiresStorageNotLow = true)
+            ).build()
+
+            viewModel.updateWorkId(request.id)
+            workManager.enqueue(request)
+        }
     }
 }

@@ -18,18 +18,23 @@ class ImageProcessingViewModel : ViewModel() {
     var workId: UUID? by mutableStateOf(null)
         private set
 
+    var inputUrl: String by mutableStateOf("")
+        private set
+
     fun updateUncompressedImageUri(uri: Uri) {
-        Log.d("ImageProcessingViewModel", "updateUncompressedImageUri called")
         uncompressedImageUri = uri
     }
 
     fun updateCompressedBitmap(bitmap: Bitmap) {
-        Log.d("ImageProcessingViewModel", "updateCompressedBitmap called")
         compressedBitmap = bitmap
     }
 
     fun updateWorkId(id: UUID) {
-        Log.d("ImageProcessingViewModel", "updateWorkId called with id: $id")
         workId = id
     }
+
+    fun updateInputUrl(url: String) {
+        inputUrl = url
+    }
+
 }
