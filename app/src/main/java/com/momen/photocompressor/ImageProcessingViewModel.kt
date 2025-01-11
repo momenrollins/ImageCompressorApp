@@ -21,6 +21,8 @@ class ImageProcessingViewModel : ViewModel() {
     var inputUrl: String by mutableStateOf("")
         private set
 
+    var compressedFilePath: String? by mutableStateOf(null)
+
     fun updateUncompressedImageUri(uri: Uri) {
         uncompressedImageUri = uri
     }
@@ -36,5 +38,10 @@ class ImageProcessingViewModel : ViewModel() {
     fun updateInputUrl(url: String) {
         inputUrl = url
     }
+
+    fun updateCompressedFilePath(path: String) {
+        compressedFilePath = path
+    }
+
 
 }

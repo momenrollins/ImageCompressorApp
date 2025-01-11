@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.LaunchedEffect
@@ -30,12 +29,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.work.Constraints
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import coil3.compose.AsyncImage
 import com.momen.photocompressor.ui.theme.PhotoCompressorTheme
+import java.io.File
 
 class ImageSharingActivity : ComponentActivity() {
     private lateinit var workManager: WorkManager
@@ -59,12 +60,13 @@ class ImageSharingActivity : ComponentActivity() {
                         filePath?.let {
                             val bitmap = BitmapFactory.decodeFile(it)
                             viewModel.updateCompressedBitmap(bitmap)
+                            viewModel.updateCompressedFilePath(it)
                         }
                     }
                 }
                 Column(
                     modifier = Modifier
-                        .fillMaxSize().padding(vertical = 40.dp)
+                        .fillMaxSize().padding(top = 50.dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
@@ -103,6 +105,10 @@ class ImageSharingActivity : ComponentActivity() {
                             bitmap = it.asImageBitmap(),
                             contentDescription = null,
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { downloadCompressedImage() }) {
+                            Text("Download Compressed Image")
+                        }
                     }
                 }
             }
@@ -136,5 +142,22 @@ class ImageSharingActivity : ComponentActivity() {
             viewModel.updateWorkId(request.id)
             workManager.enqueue(request)
         }
+    }
+
+    private fun downloadCompressedImage() {
+        val filePath = viewModel.compressedFilePath ?: return
+        val file = File(filePath)
+        val contentUri = FileProvider.getUriForFile(
+            this,
+            "com.momen.photocompressor.provider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, contentUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "Save or Share Image"))
     }
 }
